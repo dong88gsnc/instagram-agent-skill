@@ -11,6 +11,8 @@ description: >-
 
 # ig-human
 
+In Codex, invoke as `$ig-human` and run the scripts from this skill directory. Keep the sibling `ig-reel/language_support.py` installed. Korean drafts use Unicode tokens and a small explicit Korean phrase lexicon. Short Korean scripts do not receive English sentence-variation penalties. The detector cannot certify Korean authorship: review findings manually, and do not require an English-calibrated PASS.
+
 Two tools live in this folder and they both actually run. Use them. Do not
 eyeball this.
 

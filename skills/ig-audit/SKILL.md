@@ -24,7 +24,7 @@ Ask for whichever the user has:
   screenshot is worth more than the rest combined.
 - Or just the posts and their view counts, which is enough for a first pass.
 
-Also read `~/.claude/instagram/log.md` if it exists, since it records which
+Also read `~/.agents/instagram/log.md` if it exists, since it records which
 hook formula each post used.
 
 ## What to actually measure

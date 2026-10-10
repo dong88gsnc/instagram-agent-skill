@@ -61,7 +61,7 @@ Pick by what the post actually is. Never default to type 1.
 ## Output
 
 Give **two options of different types**, labelled, plus one line on which you
-would post and why. Run both through `/ig-human` first: comments are short, so
+would post and why. Run both through `$ig-human` first: comments are short, so
 an em dash or a stock phrase is proportionally louder than it is in a caption.
 
 ```
@@ -82,7 +82,7 @@ Post the first. It concedes something and it has a number in it.
 
 For an engagement round, ask for the 5 to 10 posts as pasted text in one
 message, return one comment each in a single block, and keep a running note in
-`~/.claude/instagram/log.md` of who has been commented on this week.
+`~/.agents/instagram/log.md` of who has been commented on this week.
 Commenting on the same three accounts every day is visible and it looks like
 exactly what it is.
 
