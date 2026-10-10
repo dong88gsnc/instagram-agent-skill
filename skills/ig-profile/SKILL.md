@@ -74,7 +74,7 @@ readable in one glance.
 ## Output
 
 Score table, then the rewrites as copy-ready blocks in fix-first order, each
-run through `/ig-human`. Re-score at the end and show the delta honestly. If
+run through `$ig-human`. Re-score at the end and show the delta honestly. If
 the rewrite reaches 84 and not 98, say 84, and say what the rest needs, which
 is usually a grid, a story habit and a pinned post that does not exist yet.
 None of that is a rewrite.

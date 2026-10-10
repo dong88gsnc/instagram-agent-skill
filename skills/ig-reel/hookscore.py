@@ -36,6 +36,8 @@ import re
 import statistics
 import sys
 
+from language_support import has_korean, duration, concrete_count, KOREAN_STAKES, BRANDS, KOREAN_NUMBERS, KOREAN_OBJECTS, words as unicode_words
+
 WORD_RE = re.compile(r"[A-Za-z0-9$%'’-]+")
 NUMBER_RE = re.compile(
     r"\$\s?\d[\d,]*(?:\.\d+)?"                       # money, whole
@@ -96,6 +98,8 @@ IMPERATIVES = {
 }
 
 DEALBREAKERS = [
+    (re.compile(r"^\s*(?:안녕하세요|안녕|여러분 안녕)"), "Greeting. Open on the payoff."),
+    (re.compile(r"이번 영상에서는|오늘 영상에서는"), "Video preamble. Open on the payoff."),
     (re.compile(r"(?i)^\s*(?:stop scrolling|don'?t scroll)"),
      "Opens with \"stop scrolling\". Asking for attention proves you have not earned it."),
     (re.compile(r"(?i)\b(?:in (?:this|today'?s) (?:video|reel)|i'?m going to show you|i'?ll show you how)\b"),
@@ -115,15 +119,18 @@ def clamp(n):
 
 def words(text):
     # "$18,000" is one word when it is spoken, so it is one word here too.
-    return WORD_RE.findall(re.sub(r"(?<=\d),(?=\d)", "", text))
+    return unicode_words(text)
 
 
 def check_length(text):
     """A hook has to land before the thumb moves. Roughly two seconds."""
     w = words(text)
     n = len(w)
-    secs = n / 2.75                      # ~165 words per minute, spoken
+    secs = duration(text)
     chars = len(text.strip())
+    if has_korean(text):
+        score = clamp(100 - max(0, secs - 3) * 35 - max(0, 1 - secs) * 40)
+        return score, f"{n} Korean/mixed tokens, ~{secs:.1f}s estimated (5 Hangul syllables/s)"
     if 5 <= n <= 12:
         score = 100.0
     elif n < 5:
@@ -141,9 +148,11 @@ def check_specificity(text):
     propers = set(PROPER_RE.findall(text))
     low = [w.lower().strip("'’") for w in words(text)]
     spoken = [w for w in low if w in SPOKEN_NUMBERS or w in MONEY_WORDS]
-    hits = len(nums) + len(propers) + len(spoken)
+    hits = concrete_count(text) if has_korean(text) else len(nums) + len(propers) + len(spoken)
     score = 15.0 if hits == 0 else clamp(45 + hits * 30)
     found = ", ".join(nums[:2] + sorted(propers)[:2] + spoken[:2])
+    if has_korean(text):
+        found = ", ".join((nums + BRANDS.findall(text) + KOREAN_NUMBERS.findall(text) + KOREAN_OBJECTS.findall(text))[:4])
     return score, (f"{hits} concrete marker(s)" + (f": {found}" if found else
                    " - no number, no name, nothing checkable"))
 
@@ -153,6 +162,8 @@ def check_stakes(text):
     w = [x.lower().strip("'’") for x in words(text)]
     hits = [x for x in w if x in STAKES]
     markers = sorted(set(hits))
+    if has_korean(text):
+        markers.extend(sorted(set(KOREAN_STAKES.findall(text))))
     if re.search(r"\$\s?\d", text):
         markers.append("a price")
     n = len(markers)
@@ -170,6 +181,8 @@ def check_frontload(text):
     low = [x.lower().strip("'’") for x in w]
     opener = " ".join(low[:2])
     penalty = 0
+    if has_korean(text) and re.match(r"^(?:안녕|여러분|오늘은|이번 영상)", text.strip()):
+        penalty = 30
     hit_opener = None
     for weak in WEAK_OPENERS:
         if opener.startswith(weak) or low[0] == weak:
@@ -177,7 +190,8 @@ def check_frontload(text):
             break
     payload = None
     for i, token in enumerate(low):
-        if (token in STAKES or token in SPOKEN_NUMBERS or token in MONEY_WORDS
+        if ((has_korean(text) and (concrete_count(w[i]) or KOREAN_STAKES.search(w[i])))
+                or token in STAKES or token in SPOKEN_NUMBERS or token in MONEY_WORDS
                 or NUMBER_RE.match(w[i]) or (i and PROPER_RE.match(w[i]))):
             payload = i
             break
@@ -199,6 +213,8 @@ def check_frontload(text):
 
 def check_address(text):
     """Aimed at one viewer, or floating in the air."""
+    if has_korean(text) and re.search(r"당신|여러분|하세요|보세요|마세요|나요[?？]?", text):
+        return 90.0, "Korean viewer address or polite request"
     low = text.lower()
     w = [x.lower().strip("'’") for x in words(text)]
     if re.search(r"\b(you|your|you're|youre|yourself)\b", low):

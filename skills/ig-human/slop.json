@@ -922,6 +922,26 @@
       "find": "go viral overnight",
       "replace": "get reach",
       "family": "nouns"
+    },
+    {
+      "find": "혁신적인",
+      "replace": "새로운",
+      "family": "korean"
+    },
+    {
+      "find": "극대화하세요",
+      "replace": "높여보세요",
+      "family": "korean"
+    },
+    {
+      "find": "새로운 차원의",
+      "replace": "다른",
+      "family": "korean"
+    },
+    {
+      "find": "오늘날의 빠르게 변화하는 세상에서",
+      "replace": "요즘",
+      "family": "korean"
     }
   ],
   "structures": [

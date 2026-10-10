@@ -52,6 +52,44 @@ reels and say "write my voice.md from these". Every skill reads that file. It
 matters more here than on other platforms, because you have to say the words
 out loud.
 
+## Codex installation and Korean validation
+
+From this checkout, run:
+
+```bash
+python3 scripts/install_codex_skills.py
+python3 -m unittest discover -s tests -v
+python3 scripts/check_codex_discovery.py
+```
+
+The installer puts `ig-reel` and its `ig-human` dependency in
+`~/.agents/skills/` and refuses to overwrite unrelated or locally modified
+installed files. Start a **new Codex session**, then invoke `$ig-reel`.
+Repository-local registrations under `.agents/skills/` are also included;
+Codex 0.159.0-alpha.3 reports those with the `instagram-agent:` namespace.
+The user installation provides the exact `$ig-reel` name from any directory.
+The discovery checker starts a new local Codex app-server and asserts that both unqualified skill names are enabled. It requires the Codex CLI and a platform capable of starting its code-mode host.
+Re-run the installer after changing source tools. Keep both skills together:
+the human tools use `ig-reel/language_support.py`.
+
+In Codex, optional voice, swipe, and log files live in `~/.agents/instagram/`.
+Run tools relative to the loaded skill's directory, not the session directory.
+For a neutral smoke test, no voice profile or credentials are needed.
+
+Korean and mixed scripts use Unicode tokens. Speech timing estimates Hangul
+syllables at 5/s plus Latin/numeric words at 165 wpm. Adjust `--korean-sps`
+and `--wpm` using a recording; digits, brand pronunciation, and pauses are
+approximations. The Korean TEMPUR® fixture targets approximately 15 seconds,
+not a measured 15-second recording. Korean hook scores are heuristics without
+corpus validation. The humanizer cleans typography, invisible characters and
+selected Korean phrases; it does not automatically rewrite sentence structure.
+The detector cannot certify Korean human authorship; it can report REVIEW or FLAGGED, never a Korean PASS.
+
+Claude users can keep using slash commands and `~/.claude/instagram/` data.
+In Codex, use dollar-prefixed skill names and `~/.agents/instagram/`.
+Interpret shared skill references according to the client in use; do not migrate
+or overwrite existing user profiles automatically.
+
 ## The thirteen
 
 | command | what it does |

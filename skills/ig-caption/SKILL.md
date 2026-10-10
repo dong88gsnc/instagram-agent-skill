@@ -100,7 +100,7 @@ python3 caption.py draft.txt --keywords "client proposals,agency pricing"
 
 1. Decide Job A or Job B and say which.
 2. Draft it.
-3. Run `/ig-human` on it. Captions are short, so slop is louder here than
+3. Run `$ig-human` on it. Captions are short, so slop is louder here than
    anywhere else in the pack.
 4. Run `caption.py` with the user's search terms. Fix every FAIL. Decide on
    every WARN out loud rather than silently.

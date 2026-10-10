@@ -26,6 +26,8 @@ import json
 import re
 import sys
 
+from language_support import duration, has_korean, concrete_count, words as unicode_words
+
 WORD_RE = re.compile(r"[A-Za-z0-9$%'’-]+")
 SENT_RE = re.compile(r"[^.!?]+[.!?]*")
 CONCRETE_RE = re.compile(r"\$\s?\d|\b\d[\d,.]*\b|(?<!^)\b[A-Z][a-z]{2,}\b", re.MULTILINE)
@@ -44,7 +46,7 @@ ABSTRACT_RUN = 3         # beats in a row with nothing checkable in them.
 
 def words(text):
     # "$18,000" is one word when it is spoken, so it is one word here too.
-    return WORD_RE.findall(re.sub(r"(?<=\d),(?=\d)", "", text))
+    return unicode_words(text)
 
 
 def pretty(token):
@@ -57,13 +59,13 @@ def tc(seconds):
     return f"{int(m)}:{s:04.1f}"
 
 
-def split_beats(raw, wps):
+def split_beats(raw, wps, korean_sps=5.0):
     """One line is one beat, unless a line is too long to be one."""
     beats = []
     for line in [l.strip() for l in raw.splitlines()]:
         if not line:
             continue
-        if len(words(line)) / wps <= MAX_BEAT * 1.5:
+        if duration(line, wps * 60, korean_sps) <= MAX_BEAT * 1.5:
             beats.append(line)
             continue
         # Long paragraph: break it at sentence ends so the timings mean
@@ -72,7 +74,7 @@ def split_beats(raw, wps):
         buf = ""
         for part in parts:
             candidate = (buf + " " + part).strip()
-            if buf and len(words(candidate)) / wps > MAX_BEAT:
+            if buf and duration(candidate, wps * 60, korean_sps) > MAX_BEAT:
                 beats.append(buf)
                 buf = part
             else:
@@ -82,23 +84,25 @@ def split_beats(raw, wps):
     return beats
 
 
-def analyse(raw, wpm=165, target=None):
+def analyse(raw, wpm=165, target=None, korean_sps=5.0):
+    if wpm <= 0 or korean_sps <= 0 or (target is not None and target <= 0):
+        raise ValueError("speech rates and target must be positive")
     wps = wpm / 60.0
-    beats = split_beats(raw, wps)
+    beats = split_beats(raw, wps, korean_sps)
     if not beats:
         return None
 
     rows, clock = [], 0.0
     for i, text in enumerate(beats):
         n = len(words(text))
-        dur = n / wps
+        dur = duration(text, wpm, korean_sps)
         rows.append({
             "n": i + 1,
             "start": round(clock, 2),
             "dur": round(dur, 2),
             "words": n,
             "text": text,
-            "concrete": len(CONCRETE_RE.findall(text)),
+            "concrete": concrete_count(text) if has_korean(text) else len(CONCRETE_RE.findall(text)),
             "label": "",
             "flags": [],
         })
@@ -167,7 +171,8 @@ def analyse(raw, wpm=165, target=None):
                          "or shoot it short. Short is usually right.")
 
     return {
-        "wpm": wpm, "target": target,
+        "wpm": wpm, "target": target, "korean_sps": korean_sps,
+        "timing_method": "Hangul syllables + Latin/numeric words" if has_korean(raw) else "words",
         "total_seconds": round(total, 2),
         "total_words": sum(r["words"] for r in rows),
         "beats": rows,
@@ -186,6 +191,8 @@ def render(a, out=sys.stdout):
         for f in r["flags"]:
             print(f"  {'':>6}  {'':>5}  {'':<8}^ {f}", file=out)
     print("-" * max(len(head), 72), file=out)
+    if a["timing_method"] != "words":
+        print(f"  Korean timing estimate: {a['korean_sps']} Hangul syllables/s plus Latin words; verify by recording.", file=out)
     for n in a["notes"]:
         print(f"  - {n}", file=out)
     print("", file=out)
@@ -195,12 +202,15 @@ def main():
     ap = argparse.ArgumentParser(description="Time a Reel script into a beat sheet.")
     ap.add_argument("input", nargs="?", default="-", help="script file, or - for stdin")
     ap.add_argument("--wpm", type=float, default=165, help="speaking rate (default 165)")
+    ap.add_argument("--korean-sps", type=float, default=5.0, help="estimated Hangul syllables per second; calibrate with a recording")
     ap.add_argument("--target", type=float, help="target length in seconds")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
 
     raw = sys.stdin.read() if args.input == "-" else open(args.input, encoding="utf-8").read()
-    a = analyse(raw, wpm=args.wpm, target=args.target)
+    if args.wpm <= 0 or args.korean_sps <= 0 or (args.target is not None and args.target <= 0):
+        ap.error("speech rates and target must be positive")
+    a = analyse(raw, wpm=args.wpm, target=args.target, korean_sps=args.korean_sps)
     if not a:
         print("empty script", file=sys.stderr)
         sys.exit(2)

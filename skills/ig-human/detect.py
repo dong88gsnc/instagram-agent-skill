@@ -30,6 +30,8 @@ import sys
 import unicodedata
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, "..", "ig-reel"))
+from language_support import has_korean, normalize, words as unicode_words, concrete_count
 LEX = os.path.join(HERE, "slop.json")
 
 SENT_RE = re.compile(r"[^.!?\n]+[.!?]*")
@@ -56,13 +58,13 @@ def sentences(text):
 
 
 def words(text):
-    return WORD_RE.findall(text)
+    return unicode_words(text) if has_korean(text) else WORD_RE.findall(text)
 
 
 def check_burstiness(text):
     """Humans vary sentence length hard. Models write even."""
     lens = [len(s.split()) for s in sentences(text)]
-    if len(lens) < 4:
+    if len(lens) < 4 or (has_korean(text) and sum(lens) < 50):
         return 50.0, "too short to judge"
     mean = statistics.mean(lens)
     cv = statistics.pstdev(lens) / mean if mean else 0
@@ -76,7 +78,7 @@ def check_specificity(text):
     if len(w) < 25:
         return 50.0, "too short to judge"
     per100 = 100 / len(w)
-    hits = len(NUMBERS.findall(text)) + len(set(PROPER.findall(text)))
+    hits = concrete_count(text) if has_korean(text) else len(NUMBERS.findall(text)) + len(set(PROPER.findall(text)))
     density = hits * per100
     score = scale(density, human=6.0, machine=0.5)
     return score, f"{hits} concrete markers, {density:.1f} per 100 words (want 4+)"
@@ -123,6 +125,8 @@ def check_voice(text, lex):
     w = words(text)
     if len(w) < 25:
         return 50.0, "too short to judge"
+    if has_korean(text):
+        return 50.0, "Korean voice is not calibrated; review register and endings manually"
     per100 = 100 / len(w)
     contractions = len(CONTRACTIONS.findall(text)) * per100
     person = len(PRONOUNS.findall(text)) * per100
@@ -155,6 +159,7 @@ CHECKS = ["BURSTINESS", "SPECIFICITY", "SLOP DENSITY", "FINGERPRINT", "VOICE"]
 
 
 def run(text, lex):
+    text = normalize(text)
     results = {}
     results["BURSTINESS"] = check_burstiness(text)
     results["SPECIFICITY"] = check_specificity(text)
@@ -166,6 +171,8 @@ def run(text, lex):
     overall = statistics.mean(scores) * 0.6 + min(scores) * 0.4
     verdict = "PASS" if overall >= 70 and min(scores) >= 55 else (
         "REVIEW" if overall >= 50 else "FLAGGED")
+    if has_korean(text):
+        verdict = "REVIEW" if verdict == "PASS" else verdict  # No calibrated Korean PASS.
     return results, overall, verdict
 
 

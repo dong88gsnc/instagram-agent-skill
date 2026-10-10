@@ -34,6 +34,8 @@ import sys
 import unicodedata
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, "..", "ig-reel"))
+from language_support import has_korean, normalize
 LEX = os.path.join(HERE, "slop.json")
 
 URL_RE = re.compile(r"https?://\S+|www\.\S+|\S+@\S+\.\S+")
@@ -176,7 +178,7 @@ def scan_structures(text, lex):
             flags.append({"name": s["name"], "count": len(found), "fix": s["fix"]})
     # Sentence-length uniformity is structural too.
     lens = [len(s.split()) for s in SENT_RE.findall(text) if len(s.split()) > 2]
-    if len(lens) >= 4:
+    if len(lens) >= 4 and (not has_korean(text) or sum(lens) >= 50):
         mean = sum(lens) / len(lens)
         var = sum((n - mean) ** 2 for n in lens) / len(lens)
         cv = (var ** 0.5) / mean if mean else 0
@@ -206,6 +208,7 @@ def restore_capitals(original, text):
 def humanize(text, lex):
     raw_for_case = text
     text, urls = protect_urls(text)
+    text = normalize(text)
     text, inv = pass_invisible(text, lex)
     text, typo = pass_typographic(text, lex)
     text, lexi = pass_lexical(text, lex)
